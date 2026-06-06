@@ -1,0 +1,47 @@
+# hermes-active-message 配置示例
+# 复制到 ~/.hermes/active-message/config.yaml 并修改
+
+enabled: true
+
+# 目标平台: weixin / telegram / feishu
+target_platform: weixin
+
+# 目标用户的 chat_id 和 user_id
+# 微信格式: xxx@im.wechat
+# Telegram: 数字ID
+target_chat_id: "YOUR_CHAT_ID"
+target_user_id: "YOUR_USER_ID"
+
+# 时区
+timezone: Asia/Shanghai
+
+# Cron 调度表达式 (每20分钟, 6:00-23:40)
+heartbeat_schedule: "0,20,40 6-23 * * *"
+
+# 活跃窗口: 只在这个时间段内发送消息
+active_window_start: "06:30"
+active_window_end: "00:00"    # 00:00 表示到午夜
+
+# 用户空闲多久才触发 (分钟)
+min_user_idle_minutes: 15
+
+# 两次主动消息之间的最小间隔 (分钟)
+min_proactive_gap_minutes: 30
+
+# 每天最多发送几条主动消息
+daily_send_limit: 8
+
+# 注入上下文时, 最近聊天消息的条数
+recent_message_limit: 8
+
+# 上下文恢复时, 注入最近几条主动消息
+restore_message_limit: 3
+
+# ---- 以下一般不需要修改 ----
+cron_job_name: active-message
+prompt_file: ~/.hermes/active-message/cron_prompt.txt
+cron_script: active-message-build-context.py
+jobs_file: ~/.hermes/cron/jobs.json
+output_root: ~/.hermes/cron/output
+state_file: ~/.hermes/active-message/state.json
+db_path: ~/.hermes/state.db

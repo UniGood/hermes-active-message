@@ -1,0 +1,5 @@
+name: active-message
+version: "1.0"
+description: Restore recent proactive Telegram messages into the next user turn.
+provides_hooks:
+  - pre_llm_call
