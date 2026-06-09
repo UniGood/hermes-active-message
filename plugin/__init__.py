@@ -24,11 +24,11 @@ from active_message_lib import (  # noqa: E402
 
 def _format_restore_context(records):
     lines = [
-        "Recent proactive outgoing messages you already sent to the user, but which are not in this session transcript:",
+        "以下是你（凯莉）最近主动发给曹凡的消息，这些消息不在当前对话历史中：",
     ]
     for record in records:
-        lines.append(f"- {format_dt(record.created_at)} {truncate_text(record.text, max_chars=220)}")
-    lines.append("Treat them as already sent context. Do not repeat them verbatim.")
+        lines.append(f"[凯莉] {format_dt(record.created_at)} {truncate_text(record.text, max_chars=220)}")
+    lines.append("这些是你已经发过的消息，请勿重复发送。")
     return "\n".join(lines)
 
 
