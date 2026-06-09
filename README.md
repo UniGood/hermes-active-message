@@ -110,6 +110,31 @@ cp config.example.yaml ~/.hermes/active-message/config.yaml
 # 编辑配置，填入你的 target_chat_id 和 target_user_id
 ```
 
+
+
+## 自定义 AI 助手和用户名称
+
+如果你想让主动消息显示特定的 AI 助手名称（如"凯莉"）和用户名称（如"曹凡"），可以修改 `plugin/__init__.py` 文件：
+
+```python
+# 找到 _format_restore_context 函数，修改以下两行：
+lines = [
+    "以下是你最近主动发给用户的消息，这些消息不在当前对话历史中：",  # 改成你的用户名称
+]
+for record in records:
+    lines.append(f"[AI助手] {format_dt(record.created_at)} {truncate_text(record.text, max_chars=220)}")  # 改成你的 AI 名称
+```
+
+例如，如果你想让 AI 叫"凯莉"，用户叫"曹凡"：
+
+```python
+lines = [
+    "以下是你（凯莉）最近主动发给曹凡的消息，这些消息不在当前对话历史中：",
+]
+for record in records:
+    lines.append(f"[凯莉] {format_dt(record.created_at)} {truncate_text(record.text, max_chars=220)}")
+```
+
 ## 配置
 
 编辑 `~/.hermes/active-message/config.yaml`:
