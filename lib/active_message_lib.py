@@ -78,6 +78,7 @@ def ensure_runtime_state(config: dict[str, Any]) -> dict[str, Any]:
             "last_restored_output": None,
             "last_restored_at": None,
             "last_seen_output": None,
+            "unanswered_count": 0,
         },
     )
     if not path.exists():
@@ -158,6 +159,38 @@ def ts_to_dt(ts: float | int | None, tz: ZoneInfo) -> datetime | None:
     return datetime.fromtimestamp(float(ts), tz=tz)
 
 
+def in_active_conversation(recent_messages: list, minutes: int = 5) -> bool:
+    """检测用户是否正在活跃聊天（最近N分钟内有消息来往）"""
+    if not recent_messages or len(recent_messages) < 2:
+        return False
+
+    # 获取最近两条消息的时间
+    last_msg = recent_messages[-1]
+    prev_msg = recent_messages[-2]
+
+    tz = ZoneInfo("Asia/Shanghai")
+    last_time = ts_to_dt(last_msg["timestamp"], tz)
+    prev_time = ts_to_dt(prev_msg["timestamp"], tz)
+
+    if not last_time or not prev_time:
+        return False
+
+    # 如果两条消息间隔小于N分钟，说明正在聊天
+    gap = (last_time - prev_time).total_seconds() / 60
+    return gap < minutes
+
+
+def user_not_replied(last_user_message_at: datetime | None, last_proactive_at: datetime | None) -> bool:
+    """检查用户是否未回复凯莉的上一条主动消息"""
+    if not last_proactive_at:
+        return False
+    if not last_user_message_at:
+        return True
+
+    # 如果用户最后消息时间早于凯莉最后主动消息时间，说明未回复
+    return last_user_message_at < last_proactive_at
+
+
 def fetch_latest_session(conn: sqlite3.Connection, target_user_id: str, source: str) -> sqlite3.Row | None:
     query = """
         SELECT
@@ -219,6 +252,9 @@ def fetch_last_user_message_time(conn: sqlite3.Connection, target_user_id: str, 
 
 def _normalize_output_text(text: str) -> str:
     value = text.strip()
+    # Treat FAILED jobs as silent (they shouldn't count toward daily limit)
+    if value.startswith("# Cron Job:") and "(FAILED)" in value.split("\n", 1)[0]:
+        return "[SILENT]"
     if "\n## Response\n" in value:
         response = value.split("\n## Response\n", 1)[1].strip()
         return response
@@ -372,11 +408,35 @@ def build_context_payload(config: dict[str, Any]) -> dict[str, Any]:
     if today_count >= int(config["daily_send_limit"]):
         decision = "NO"
         reasons.append("daily_limit_reached")
+    if decision != "NO" and in_active_conversation(recent_messages, minutes=5):
+        decision = "NO"
+        reasons.append("active_conversation")
+    if decision != "NO" and user_not_replied(last_user_message_at, last_proactive_at):
+        unanswered_count = state.get("unanswered_count", 0)
+        if unanswered_count >= 3:
+            decision = "NO"
+            reasons.append("max_followup_reached")
+        else:
+            decision = "FOLLOWUP"
+            reasons.append(f"unanswered_{unanswered_count + 1}")
+            # 更新追问次数
+            state["unanswered_count"] = unanswered_count + 1
+            save_runtime_state(config, state)
+    else:
+        # 用户已回复，重置追问次数
+        if state.get("unanswered_count", 0) > 0:
+            state["unanswered_count"] = 0
+            save_runtime_state(config, state)
     if decision != "NO" and (latest_session is None or not recent_messages):
         decision = "MAYBE"
         reasons.append("thin_context")
 
     next_eligible = compute_next_eligible_at(now, config, last_user_message_at, last_proactive_at, today_count)
+
+    # 选择话题（排除最近聊过的）
+    recent_topic_ids = get_recent_topic_ids(hours=2)
+    selected_topic = select_topic_entry(config, now, recent_topic_ids) if decision == "YES" else None
+
     return {
         "now": now,
         "decision": decision,
@@ -390,4 +450,141 @@ def build_context_payload(config: dict[str, Any]) -> dict[str, Any]:
         "today_count": today_count,
         "state": state,
         "timezone": tz,
+        "selected_topic": selected_topic,
     }
+
+
+def load_knowledge_base(config: dict[str, Any]) -> dict[str, Any]:
+    """加载话题知识库"""
+    kb_path = hermes_home() / "active-message" / "knowledge-base.json"
+    if not kb_path.exists():
+        return {"entries": []}
+    try:
+        with kb_path.open("r", encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return {"entries": []}
+
+
+def get_time_tag(hour: int) -> str:
+    """根据小时获取时段标签"""
+    if 6 <= hour < 12:
+        return "morning"
+    elif 12 <= hour < 14:
+        return "noon"
+    elif 14 <= hour < 18:
+        return "afternoon"
+    elif 18 <= hour < 20:
+        return "evening"
+    elif 20 <= hour < 24:
+        return "night"
+    else:
+        return "late_night"
+
+
+def in_cooldown(entry: dict[str, Any], now: datetime) -> bool:
+    """检查条目是否在冷却期"""
+    last_used = entry.get("last_used")
+    if not last_used:
+        return False
+    try:
+        last_used_dt = datetime.fromisoformat(last_used)
+        cooldown_hours = entry.get("cooldown_hours", 4)
+        return now < last_used_dt + timedelta(hours=cooldown_hours)
+    except (ValueError, TypeError):
+        return False
+
+
+def get_recent_topic_ids(config: dict[str, Any] | None = None, hours: int = 2) -> list[str]:
+    """返回最近 N 小时内使用过的话题 ID 列表"""
+    from datetime import datetime, timedelta
+    cfg = config or load_feature_config()
+    now = get_now(cfg)
+    cutoff = now - timedelta(hours=hours)
+    kb = load_knowledge_base(cfg)
+    result: list[str] = []
+    for entry in kb.get("entries", []):
+        last_used = entry.get("last_used")
+        if not last_used:
+            continue
+        try:
+            used_at = datetime.fromisoformat(last_used)
+            if used_at.tzinfo is None:
+                used_at = used_at.replace(tzinfo=now.tzinfo)
+            if used_at >= cutoff:
+                result.append(entry.get("id", ""))
+        except (ValueError, TypeError):
+            continue
+    return result
+
+
+def select_topic_entry(config: dict[str, Any], now: datetime, recent_topic_ids: list[str] | None = None) -> dict[str, Any] | None:
+    """根据时间和历史选择话题"""
+    kb = load_knowledge_base(config)
+    entries = kb.get("entries", [])
+    if not entries:
+        return None
+
+    current_hour = now.hour
+    weekday = now.weekday()
+    time_tag = get_time_tag(current_hour)
+
+    # 按时段过滤
+    candidates = [e for e in entries if time_tag in e.get("time_relevance", []) or "any" in e.get("time_relevance", [])]
+
+    # 排除冷却中的
+    candidates = [e for e in candidates if not in_cooldown(e, now)]
+
+    # 排除最近聊过的
+    if recent_topic_ids:
+        candidates = [e for e in candidates if e.get("id") not in recent_topic_ids]
+
+    if not candidates:
+        return None
+
+    # 计算权重
+    def calc_weight(entry: dict[str, Any]) -> float:
+        w = entry.get("weight", 1.0)
+        # 周末调整
+        if weekday >= 5:
+            if entry.get("category") in ("hobby", "life", "emotion"):
+                w *= 1.3
+            if entry.get("category") == "tech":
+                w *= 0.8
+        return w
+
+    # 加权随机选择
+    import random
+    weights = [calc_weight(e) for e in candidates]
+    total = sum(weights)
+    if total == 0:
+        return random.choice(candidates)
+    r = random.uniform(0, total)
+    cumulative = 0
+    for entry, weight in zip(candidates, weights):
+        cumulative += weight
+        if r <= cumulative:
+            return entry
+    return candidates[-1]
+
+
+def update_topic_usage(entry_id: str, config: dict[str, Any], now: datetime, user_replied: bool = False) -> None:
+    """更新话题使用记录"""
+    kb_path = hermes_home() / "active-message" / "knowledge-base.json"
+    kb = load_knowledge_base(config)
+    entries = kb.get("entries", [])
+
+    for entry in entries:
+        if entry.get("id") == entry_id:
+            entry["last_used"] = now.isoformat()
+            entry["success_count"] = entry.get("success_count", 0) + 1
+            if user_replied:
+                entry["reply_count"] = entry.get("reply_count", 0) + 1
+            break
+
+    kb["last_updated"] = now.isoformat()
+    try:
+        with kb_path.open("w", encoding="utf-8") as f:
+            json.dump(kb, f, ensure_ascii=False, indent=2)
+    except OSError:
+        pass
