@@ -687,10 +687,29 @@ hermes-active-message/
 ├── scripts/
 │   └── active-message-build-context.py  # 薄包装
 └── cron/
+    ├── jobs.json              # ⭐ cron job 的实际配置（prompt 存在这里）
     └── output/
         └── <job_id>/
             └── *.md           # 每次 cron job 运行的完整记录
 ```
+
+### 配置文件说明
+
+| 文件 | 位置 | 说明 |
+|------|------|------|
+| `config.yaml` | `~/.hermes/active-message/config.yaml` | 功能配置（时间窗口、限制等） |
+| `jobs.json` | `~/.hermes/cron/jobs.json` | ⭐ **cron job 的实际配置，prompt 存在这里** |
+| `cron_prompt.txt` | `~/.hermes/active-message/cron_prompt.txt` | prompt 的参考副本（修改后需同步到 jobs.json） |
+
+**重要：**
+- **修改 prompt 时，必须同步修改 `jobs.json` 和 `cron_prompt.txt` 两个文件**
+- `jobs.json` 是 cron job 的实际配置，Hermes 直接读取它
+- `cron_prompt.txt` 是参考副本，方便查看和编辑
+
+**修改 prompt 的正确流程：**
+1. 编辑 `~/.hermes/active-message/cron_prompt.txt`
+2. 同步到 `~/.hermes/cron/jobs.json`（使用 Python 脚本或 cronjob update 命令）
+3. 重启 gateway 或等待下次 cron 触发
 
 ---
 
