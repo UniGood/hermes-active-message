@@ -18,7 +18,6 @@
 | 用户活跃检查 | `active_message_lib.py:353-357` | 基于 `min_user_idle_minutes` |
 | 主动消息冷却 | `active_message_lib.py:358-362` | 基于 `min_proactive_gap_minutes` |
 | 每日限制 | `active_message_lib.py:363-365` | 基于 `daily_send_limit` |
-| **活跃聊天检测** | `active_message_lib.py:161-182` | `in_active_conversation()` |
 | **用户未回复追问** | `active_message_lib.py:185-195` | `user_not_replied()` |
 | **话题知识库** | `knowledge-base.json` | 15个话题条目，7个分类 |
 | **话题选择逻辑** | `active_message_lib.py:460-530` | `select_topic_entry()` |
@@ -37,7 +36,6 @@
 | 用户活跃检查 | 用户发送消息后冷却 N 分钟 |
 | 主动消息冷却 | 两次主动消息间隔 N 分钟 |
 | 每日限制 | 每天最多发送 8 条主动消息 |
-| 活跃聊天检测 | 用户正在聊天时（间隔<5分钟）不发送 |
 | 用户未回复追问 | 最多追问 3 次，之后停止 |
 
 #### 2. 智能调度
@@ -293,15 +291,6 @@ pre_llm_call hook 触发
 
 ## 五、防骚扰机制
 
-### 活跃聊天检测
-
-```python
-def in_active_conversation(recent_messages: list, minutes: int = 5) -> bool:
-    """检测用户是否正在活跃聊天（最近N分钟内有消息来往）"""
-```
-
-**效果：** 用户正在聊天时，不发送主动消息。
-
 ### 早退逻辑
 
 ```python
@@ -439,7 +428,7 @@ def user_not_replied(last_user_message_at, last_proactive_at) -> bool:
 | 阶段 | 状态 | 功能 |
 |------|------|------|
 | 第一阶段：验证上下文注入 | ✅ 完成 | 验证 hook 机制正常工作 |
-| 第二阶段：防骚扰 | ✅ 完成 | 活跃聊天检测、早退逻辑 |
+| 第二阶段：防骚扰 | ✅ 完成 | 早退逻辑、prompt优化 |
 | 第三阶段：用户未回复追问 | ✅ 完成 | 追问逻辑、最多3次 |
 | 第四阶段：话题知识库 | ✅ 完成 | 15个话题、7个分类 |
 | 第五阶段：历史记录 | ✅ 完成 | history.jsonl、topic_history.json |
