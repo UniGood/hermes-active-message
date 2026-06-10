@@ -324,27 +324,15 @@ def truncate_text(value: str, max_chars: int = 160) -> str:
     return compact[: max_chars - 1].rstrip() + "…"
 
 
-def _is_message_content(text: str) -> bool:
-    stripped = text.strip()
-    if not stripped:
-        return False
-    if stripped.startswith("[") and stripped.endswith("]") and len(stripped) < 300:
-        return False
-    return True
-
-
 def format_recent_messages(rows: list[sqlite3.Row], tz: ZoneInfo) -> str:
     if not rows:
         return "- none"
     lines = []
     for row in rows:
-        content = (row["content"] or "").strip()
-        if not _is_message_content(content):
-            continue
         dt = ts_to_dt(row["timestamp"], tz)
         label = "user" if row["role"] == "user" else "assistant"
-        lines.append(f"- {format_dt(dt)} [{label}] {truncate_text(content)}")
-    return "\n".join(lines) if lines else "- none"
+        lines.append(f"- {format_dt(dt)} [{label}] {truncate_text(row['content'] or '')}")
+    return "\n".join(lines)
 
 
 def format_recent_outputs(records: list[OutputRecord]) -> str:
@@ -433,9 +421,12 @@ def build_context_payload(config: dict[str, Any]) -> dict[str, Any]:
 
     next_eligible = compute_next_eligible_at(now, config, last_user_message_at, last_proactive_at, today_count)
 
-    # 选择话题（排除最近聊过的）
-    recent_topic_ids = get_recent_topic_ids(hours=2)
-    selected_topic = select_topic_entry(config, now, recent_topic_ids) if decision == "YES" else None
+    # 检测最近聊天的话题分类
+    recent_chat_category = detect_topic_category(recent_messages) if recent_messages else None
+
+    # 选择话题（排除最近聊过的，优先同分类）
+    recent_topic_ids = get_recent_topic_ids(config, hours=2)
+    selected_topic = select_topic_entry(config, now, recent_topic_ids, recent_chat_category) if decision == "YES" else None
 
     return {
         "now": now,
@@ -482,6 +473,53 @@ def get_time_tag(hour: int) -> str:
         return "late_night"
 
 
+# 关键词到分类的映射
+_CATEGORY_KEYWORDS: dict[str, list[str]] = {
+    "food": ["吃", "饭", "餐", "食", "喝", "水", "饿", "饱", "外卖", "点餐", "做饭", "食堂",
+             "早餐", "午饭", "晚饭", "夜宵", "零食", "水果", "咖啡", "奶茶", "可乐",
+             "披萨", "水饺", "火锅", "烧烤", "面条", "米饭", "汉堡", "寿司", "蛋糕"],
+    "health": ["累", "困", "休息", "睡觉", "失眠", "腰", "脖子", "眼睛", "久坐", "运动",
+               "健身", "跑步", "生病", "感冒", "头疼", "发烧", "咳嗽"],
+    "emotion": ["开心", "难过", "伤心", "生气", "烦", "压力", "焦虑", "想你", "喜欢",
+                "爱", "讨厌", "害怕", "担心", "无聊", "孤独", "感动", "幸福"],
+    "life": ["上班", "下班", "加班", "工作", "公司", "周末", "放假", "出行", "路上",
+             "到家", "出门", "天气", "下雨", "下雪", "热", "冷"],
+    "tech": ["代码", "bug", "程序", "开发", "测试", "部署", "服务器", "数据库", "接口",
+             "前端", "后端", "Java", "Python", "Git", "PR", "需求"],
+    "hobby": ["歌", "音乐", "电影", "电视", "剧", "游戏", "书", "小说", "动漫",
+              "综艺", "旅游", "摄影", "画画", "唱歌"],
+}
+
+
+def detect_topic_category(recent_messages: list) -> str | None:
+    """从最近聊天中检测话题分类"""
+    if not recent_messages:
+        return None
+
+    # 拼接最近消息内容
+    texts = []
+    for msg in recent_messages[-6:]:  # 只看最近6条
+        content = msg.get("content") or ""
+        if content.strip():
+            texts.append(content.lower())
+    combined = " ".join(texts)
+    if not combined:
+        return None
+
+    # 统计各分类命中次数
+    scores: dict[str, int] = {}
+    for category, keywords in _CATEGORY_KEYWORDS.items():
+        count = sum(1 for kw in keywords if kw in combined)
+        if count > 0:
+            scores[category] = count
+
+    if not scores:
+        return None
+
+    # 返回命中最多的分类
+    return max(scores, key=scores.get)
+
+
 def in_cooldown(entry: dict[str, Any], now: datetime) -> bool:
     """检查条目是否在冷却期"""
     last_used = entry.get("last_used")
@@ -518,7 +556,7 @@ def get_recent_topic_ids(config: dict[str, Any] | None = None, hours: int = 2) -
     return result
 
 
-def select_topic_entry(config: dict[str, Any], now: datetime, recent_topic_ids: list[str] | None = None) -> dict[str, Any] | None:
+def select_topic_entry(config: dict[str, Any], now: datetime, recent_topic_ids: list[str] | None = None, prefer_category: str | None = None) -> dict[str, Any] | None:
     """根据时间和历史选择话题"""
     kb = load_knowledge_base(config)
     entries = kb.get("entries", [])
@@ -551,6 +589,9 @@ def select_topic_entry(config: dict[str, Any], now: datetime, recent_topic_ids: 
                 w *= 1.3
             if entry.get("category") == "tech":
                 w *= 0.8
+        # 最近聊天话题优先
+        if prefer_category and entry.get("category") == prefer_category:
+            w *= 3.0
         return w
 
     # 加权随机选择

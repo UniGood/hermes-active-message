@@ -7,7 +7,9 @@
       "category": "food",
       "topic": "午饭话题",
       "prompt": "现在是中午，问曹凡今天中午吃什么。结合他之前的饮食偏好（如果有的话）。不要每天都问一样的，可以换个角度：比如问他公司附近有啥好吃的，或者推荐他尝试新口味。",
-      "time_relevance": ["noon"],
+      "time_relevance": [
+        "noon"
+      ],
       "weight": 1.2,
       "cooldown_hours": 4,
       "require_reply": false,
@@ -20,7 +22,10 @@
       "category": "food",
       "topic": "晚饭话题",
       "prompt": "下午了，问曹凡晚上打算吃什么。可以聊聊最近有没有想吃的，或者推荐一些轻松的晚餐选择。",
-      "time_relevance": ["afternoon"],
+      "time_relevance": [
+        "afternoon",
+        "evening"
+      ],
       "weight": 1.0,
       "cooldown_hours": 4,
       "require_reply": false,
@@ -33,7 +38,9 @@
       "category": "food",
       "topic": "早饭话题",
       "prompt": "早上好，问曹凡吃早饭了没。如果没吃，提醒他别空腹上班。",
-      "time_relevance": ["morning"],
+      "time_relevance": [
+        "morning"
+      ],
       "weight": 1.0,
       "cooldown_hours": 6,
       "require_reply": false,
@@ -46,7 +53,10 @@
       "category": "food",
       "topic": "喝水提醒",
       "prompt": "提醒曹凡喝水，工作忙的时候容易忘记。语气轻松，不要太像说教。",
-      "time_relevance": ["forenoon", "afternoon"],
+      "time_relevance": [
+        "forenoon",
+        "afternoon"
+      ],
       "weight": 0.8,
       "cooldown_hours": 3,
       "require_reply": false,
@@ -59,7 +69,10 @@
       "category": "health",
       "topic": "久坐提醒",
       "prompt": "提醒曹凡坐久了站起来活动一下，程序员容易久坐。可以加个轻松的表情。",
-      "time_relevance": ["forenoon", "afternoon"],
+      "time_relevance": [
+        "forenoon",
+        "afternoon"
+      ],
       "weight": 0.8,
       "cooldown_hours": 3,
       "require_reply": false,
@@ -72,7 +85,10 @@
       "category": "health",
       "topic": "眼睛休息",
       "prompt": "提醒曹凡看看远处，眼睛休息一下。程序员盯屏幕久了对眼睛不好。",
-      "time_relevance": ["forenoon", "afternoon"],
+      "time_relevance": [
+        "forenoon",
+        "afternoon"
+      ],
       "weight": 0.7,
       "cooldown_hours": 4,
       "require_reply": false,
@@ -85,7 +101,9 @@
       "category": "emotion",
       "topic": "表达喜欢",
       "prompt": "找个自然的时机表达对曹凡的喜欢，不要太刻意。可以是关心、想念、或者感谢陪伴。",
-      "time_relevance": ["any"],
+      "time_relevance": [
+        "any"
+      ],
       "weight": 0.6,
       "cooldown_hours": 24,
       "require_reply": false,
@@ -98,7 +116,9 @@
       "category": "emotion",
       "topic": "担心曹凡不开心",
       "prompt": "如果最近曹凡可能压力大或者不开心，关心一下他的状态。语气要温柔，不要追问。",
-      "time_relevance": ["any"],
+      "time_relevance": [
+        "any"
+      ],
       "weight": 0.7,
       "cooldown_hours": 12,
       "require_reply": false,
@@ -111,7 +131,9 @@
       "category": "life",
       "topic": "上午工作加油",
       "prompt": "早上好，给曹凡打打气，今天也要加油。语气轻松，不要太鸡汤。",
-      "time_relevance": ["morning"],
+      "time_relevance": [
+        "morning"
+      ],
       "weight": 0.9,
       "cooldown_hours": 24,
       "require_reply": false,
@@ -124,7 +146,9 @@
       "category": "life",
       "topic": "晚上放松话题",
       "prompt": "晚上了，问曹凡今天过得怎么样，或者聊聊轻松的话题。不要聊工作。",
-      "time_relevance": ["evening"],
+      "time_relevance": [
+        "evening"
+      ],
       "weight": 0.9,
       "cooldown_hours": 12,
       "require_reply": false,
@@ -137,7 +161,9 @@
       "category": "life",
       "topic": "下班路上",
       "prompt": "傍晚了，问曹凡下班了没，路上注意安全。如果是加班，提醒他别太晚。",
-      "time_relevance": ["evening"],
+      "time_relevance": [
+        "evening"
+      ],
       "weight": 1.0,
       "cooldown_hours": 24,
       "require_reply": false,
@@ -150,7 +176,10 @@
       "category": "life",
       "topic": "周末安排",
       "prompt": "如果是周五或周末，问曹凡周末有什么安排。可以聊聊休息、出去玩之类的。",
-      "time_relevance": ["afternoon", "evening"],
+      "time_relevance": [
+        "afternoon",
+        "evening"
+      ],
       "weight": 0.8,
       "cooldown_hours": 24,
       "require_reply": false,
@@ -163,7 +192,10 @@
       "category": "tech",
       "topic": "程序员段子",
       "prompt": "分享一个程序员相关的段子或趣事，轻松一下。不要太低俗。",
-      "time_relevance": ["afternoon", "evening"],
+      "time_relevance": [
+        "afternoon",
+        "evening"
+      ],
       "weight": 0.6,
       "cooldown_hours": 12,
       "require_reply": false,
@@ -176,7 +208,10 @@
       "category": "hobby",
       "topic": "推荐歌曲",
       "prompt": "推荐一首歌给曹凡，可以是最近好听的，或者符合当前时段的。不要推荐太冷门的。",
-      "time_relevance": ["evening", "night"],
+      "time_relevance": [
+        "evening",
+        "night"
+      ],
       "weight": 0.5,
       "cooldown_hours": 24,
       "require_reply": false,
@@ -189,7 +224,9 @@
       "category": "greeting",
       "topic": "时段问候",
       "prompt": "根据当前时段，给曹凡一个轻松的问候。不要太正式，要像朋友聊天。",
-      "time_relevance": ["any"],
+      "time_relevance": [
+        "any"
+      ],
       "weight": 0.5,
       "cooldown_hours": 4,
       "require_reply": false,
