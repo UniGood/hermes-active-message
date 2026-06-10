@@ -511,7 +511,7 @@ def detect_topic_category(recent_messages: list) -> str | None:
     # 拼接最近消息内容
     texts = []
     for msg in recent_messages[-6:]:  # 只看最近6条
-        content = msg.get("content") or ""
+        content = msg["content"] if msg["content"] else ""
         if content.strip():
             texts.append(content.lower())
     combined = " ".join(texts)
