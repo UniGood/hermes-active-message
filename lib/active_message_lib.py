@@ -488,6 +488,18 @@ _CATEGORY_KEYWORDS: dict[str, list[str]] = {
              "前端", "后端", "Java", "Python", "Git", "PR", "需求"],
     "hobby": ["歌", "音乐", "电影", "电视", "剧", "游戏", "书", "小说", "动漫",
               "综艺", "旅游", "摄影", "画画", "唱歌"],
+    "greeting": [],
+}
+
+# 分类关联关系：A -> [B, C] 表示A话题可以延伸到B、C话题
+_CATEGORY_RELATIONS: dict[str, list[str]] = {
+    "food":     ["health", "life", "hobby"],        # 吃 → 运动/周末出去吃/推荐美食
+    "health":   ["emotion", "life", "food"],         # 健康 → 关心状态/提醒休息/饮食
+    "emotion":  ["life", "hobby", "food"],           # 心情 → 生活关心/推荐放松/吃点好的
+    "life":     ["food", "emotion", "health"],       # 生活 → 吃饭/关心/健康
+    "tech":     ["health", "hobby", "life"],         # 代码 → 久坐提醒/放松/下班
+    "hobby":    ["life", "emotion", "food"],         # 兴趣 → 生活/情感/美食
+    "greeting": ["life", "emotion", "food"],
 }
 
 
@@ -590,8 +602,12 @@ def select_topic_entry(config: dict[str, Any], now: datetime, recent_topic_ids: 
             if entry.get("category") == "tech":
                 w *= 0.8
         # 最近聊天话题优先
-        if prefer_category and entry.get("category") == prefer_category:
-            w *= 3.0
+        if prefer_category:
+            entry_cat = entry.get("category")
+            if entry_cat == prefer_category:
+                w *= 3.0  # 同分类：最高优先
+            elif entry_cat in _CATEGORY_RELATIONS.get(prefer_category, []):
+                w *= 1.5  # 关联分类：中等优先
         return w
 
     # 加权随机选择
