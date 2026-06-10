@@ -159,24 +159,27 @@ def ts_to_dt(ts: float | int | None, tz: ZoneInfo) -> datetime | None:
     return datetime.fromtimestamp(float(ts), tz=tz)
 
 
-def in_active_conversation(recent_messages: list, minutes: int = 5) -> bool:
-    """检测用户是否正在活跃聊天（最近N分钟内有消息来往）"""
-    if not recent_messages or len(recent_messages) < 2:
+def in_active_conversation(recent_messages: list, now: datetime | None = None, minutes: int = 5) -> bool:
+    """检测用户是否正在活跃聊天（最后一条用户消息距今 < N 分钟）"""
+    if not recent_messages:
         return False
 
-    # 获取最近两条消息的时间
-    last_msg = recent_messages[-1]
-    prev_msg = recent_messages[-2]
-
+    # 找到最后一条用户消息的时间
     tz = ZoneInfo("Asia/Shanghai")
-    last_time = ts_to_dt(last_msg["timestamp"], tz)
-    prev_time = ts_to_dt(prev_msg["timestamp"], tz)
+    if now is None:
+        now = datetime.now(tz)
 
-    if not last_time or not prev_time:
+    last_user_time = None
+    for msg in reversed(recent_messages):
+        if msg["role"] == "user":
+            last_user_time = ts_to_dt(msg["timestamp"], tz)
+            break
+
+    if not last_user_time:
         return False
 
-    # 如果两条消息间隔小于N分钟，说明正在聊天
-    gap = (last_time - prev_time).total_seconds() / 60
+    # 最后一条用户消息距今 < N 分钟 → 用户正在活跃
+    gap = (now - last_user_time).total_seconds() / 60
     return gap < minutes
 
 
