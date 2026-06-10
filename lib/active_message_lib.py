@@ -159,30 +159,6 @@ def ts_to_dt(ts: float | int | None, tz: ZoneInfo) -> datetime | None:
     return datetime.fromtimestamp(float(ts), tz=tz)
 
 
-def in_active_conversation(recent_messages: list, now: datetime | None = None, minutes: int = 5) -> bool:
-    """检测用户是否正在活跃聊天（最后一条用户消息距今 < N 分钟）"""
-    if not recent_messages:
-        return False
-
-    # 找到最后一条用户消息的时间
-    tz = ZoneInfo("Asia/Shanghai")
-    if now is None:
-        now = datetime.now(tz)
-
-    last_user_time = None
-    for msg in reversed(recent_messages):
-        if msg["role"] == "user":
-            last_user_time = ts_to_dt(msg["timestamp"], tz)
-            break
-
-    if not last_user_time:
-        return False
-
-    # 最后一条用户消息距今 < N 分钟 → 用户正在活跃
-    gap = (now - last_user_time).total_seconds() / 60
-    return gap < minutes
-
-
 def user_not_replied(last_user_message_at: datetime | None, last_proactive_at: datetime | None) -> bool:
     """检查用户是否未回复凯莉的上一条主动消息"""
     if not last_proactive_at:
@@ -399,9 +375,6 @@ def build_context_payload(config: dict[str, Any]) -> dict[str, Any]:
     if today_count >= int(config["daily_send_limit"]):
         decision = "NO"
         reasons.append("daily_limit_reached")
-    if decision != "NO" and in_active_conversation(recent_messages, minutes=5):
-        decision = "NO"
-        reasons.append("active_conversation")
     if decision != "NO" and user_not_replied(last_user_message_at, last_proactive_at):
         unanswered_count = state.get("unanswered_count", 0)
         if unanswered_count >= 3:
