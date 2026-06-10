@@ -288,15 +288,27 @@ def truncate_text(value: str, max_chars: int = 160) -> str:
     return compact[: max_chars - 1].rstrip() + "…"
 
 
+def _is_message_content(text: str) -> bool:
+    stripped = text.strip()
+    if not stripped:
+        return False
+    if stripped.startswith("[") and stripped.endswith("]") and len(stripped) < 300:
+        return False
+    return True
+
+
 def format_recent_messages(rows: list[sqlite3.Row], tz: ZoneInfo) -> str:
     if not rows:
         return "- none"
     lines = []
     for row in rows:
+        content = (row["content"] or "").strip()
+        if not _is_message_content(content):
+            continue
         dt = ts_to_dt(row["timestamp"], tz)
         label = "user" if row["role"] == "user" else "assistant"
-        lines.append(f"- {format_dt(dt)} [{label}] {truncate_text(row['content'] or '')}")
-    return "\n".join(lines)
+        lines.append(f"- {format_dt(dt)} [{label}] {truncate_text(content)}")
+    return "\n".join(lines) if lines else "- none"
 
 
 def format_recent_outputs(records: list[OutputRecord]) -> str:
