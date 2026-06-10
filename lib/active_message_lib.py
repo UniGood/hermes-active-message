@@ -586,6 +586,15 @@ def select_topic_entry(config: dict[str, Any], now: datetime, recent_topic_ids: 
                 w *= 1.5  # 关联分类：中等优先
         return w
 
+    # 每个分类只保留权重最高的一个（避免同分类重复）
+    best_by_category: dict[str, dict] = {}
+    for entry in candidates:
+        cat = entry.get("category", "")
+        w = calc_weight(entry)
+        if cat not in best_by_category or w > calc_weight(best_by_category[cat]):
+            best_by_category[cat] = entry
+    candidates = list(best_by_category.values())
+
     # 加权随机选择
     import random
     weights = [calc_weight(e) for e in candidates]
